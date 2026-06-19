@@ -14,6 +14,10 @@
 - **확정 스택**: Python **3.11.9** / **torch 2.4.0+cu124** (CUDA 12.4 · cuDNN 9.1) +
   HuggingFace / LangChain / LangGraph. (CPU·T4 양쪽 실측 검증 완료)
 
+> 🔑 **왜 colima인가**: 로컬 Docker는 **Docker Desktop을 쓰지 않고 colima(MIT, 오픈소스)** 로
+> 돌립니다. Docker Desktop은 일정 규모 이상 기업에서 **유료 라이선스**가 필요하지만, colima는
+> 라이선스 부담 없이 같은 `docker` CLI를 그대로 쓸 수 있습니다. (이 저장소 이름이 `colima-101`인 이유)
+
 > **Pod ↔ Colab 환경 비교**는 아래 [환경 비교](#환경-비교-실측) 참고. OS(Ubuntu 22.04.5)는
 > 동일하고, 시스템 Python(3.12)만 uv로 3.11.9를 맞춥니다.
 
@@ -153,6 +157,11 @@ Colab 런타임은 공개 이미지(`us-docker.pkg.dev/colab-images/public/runti
 ## 배경 & 상세
 
 ### 1. macOS에 colima로 Docker + Kubernetes
+
+**왜 colima?** Docker Desktop은 일정 규모 이상 기업에서 **유료 구독 라이선스**가 필요합니다.
+[colima](https://github.com/abiosoft/colima)는 **MIT 라이선스 오픈소스**로, 라이선스 부담 없이
+동일한 `docker`/`kubectl` CLI를 그대로 쓸 수 있어 회사 환경에서 안전합니다. (Docker Desktop
+미설치 — colima가 띄우는 Linux VM 안의 Docker 엔진에 CLI가 붙습니다.)
 
 **환경**: macOS (Apple Silicon, aarch64) · macOS Virtualization.Framework · Homebrew
 
