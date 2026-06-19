@@ -2,40 +2,39 @@
 
 ## 이 저장소의 목적 (왜 만들었나)
 
-- 우리 코드는 **NVIDIA GPU가 달린 Ubuntu Pod**(SageMaker)에서 돌아갑니다.
+- 우리 코드는 **NVIDIA GPU가 달린 Ubuntu 컨테이너**(SageMaker)에서 돌아갑니다.
 - 하지만 개발은 **Apple Silicon Mac(M5, 32GB)** 에서 합니다 — NVIDIA/CUDA가 없습니다.
 
-**개발 순서**는 이렇습니다:
+**개발 순서**: ① **로컬 Docker 컨테이너**에서 원본과 동일한 환경을 만들어 GPU 없이(CPU) 코드를
+확인 → ② 같은 코드를 **NVIDIA GPU로 테스트**하려고 **Colab T4** 사용.
 
-1. **로컬 Docker 컨테이너(`pod-clone`)** 에서 Pod과 동일한 패키지 환경을 만들고,
-   **NVIDIA GPU 없이(CPU)** 코드가 도는지 먼저 확인합니다 (Mac/colima에서).
-2. 그 다음 **같은 코드를 NVIDIA GPU로 테스트**하기 위해 **Colab T4 인스턴스**를 씁니다.
+이 저장소는 그렇게 재현하는 **여러 SageMaker 컨테이너를 계속 모아가는 곳**입니다.
+(현재: `sagemaker-distribution`. 예정: `sagemaker-training` 등)
 
-- **확정 스택**: Python **3.11.9** / **torch 2.4.0+cu124** (CUDA 12.4 · cuDNN 9.1) +
-  HuggingFace / LangChain / LangGraph. (CPU·T4 양쪽 실측 검증 완료)
-
-> 🔑 **왜 colima인가**: 로컬 Docker는 **Docker Desktop을 쓰지 않고 colima(MIT, 오픈소스)** 로
+> 🔑 **왜 colima인가**: 로컬 Docker는 **Docker Desktop을 안 쓰고 colima(MIT 오픈소스)** 로
 > 돌립니다. Docker Desktop은 일정 규모 이상 기업에서 **유료 라이선스**가 필요하지만, colima는
-> 라이선스 부담 없이 같은 `docker` CLI를 그대로 쓸 수 있습니다. (이 저장소 이름이 `colima-101`인 이유)
+> 라이선스 부담 없이 동일한 `docker`/`kubectl` CLI를 그대로 씁니다. (저장소 이름이 `colima-101`인 이유)
 
-> **Pod ↔ Colab 환경 비교**는 아래 [환경 비교](#환경-비교-실측) 참고. OS(Ubuntu 22.04.5)는
-> 동일하고, 시스템 Python(3.12)만 uv로 3.11.9를 맞춥니다.
+## 저장소 구조
 
-작업은 세 갈래입니다.
+```
+.
+├── containers/                     # 컨테이너별 재현 정의 (각자 Dockerfile/requirements/notebook/README)
+│   ├── README.md                   #   └ 컨테이너 목록 + 추가 가이드
+│   ├── _template/                  #   └ 새 컨테이너 스캐폴드
+│   ├── sagemaker-distribution/     #   └ ✅ 우리 코드가 도는 Pod (Python 3.11.9 / torch 2.4.0+cu124)
+│   └── sagemaker-training/         #   └ 🚧 학습 컨테이너 (작업 예정, #2)
+├── scripts/                        # 공통 도구 (컨테이너 무관)
+└── README.md                       # (이 파일) 목적 · 공통 워크플로우
+```
 
-- **A.** Colab T4에서 그 환경(+NVIDIA GPU)을 돌리기 ← 핵심
-- **B.** 같은 패키지 환경을 로컬 Docker 이미지(`pod-clone`)로 재현하기 (개발 1단계)
-- **C.** (그 토대로) macOS에 colima로 Docker + Kubernetes 깔기
-
-> 아래 **TL;DR**만 보면 바로 돌릴 수 있습니다. 배경/이유가 궁금하면 [상세](#배경--상세)로.
+→ 컨테이너 목록과 **새 컨테이너 추가하는 법**은 [`containers/README.md`](containers/README.md) 참고.
 
 ---
 
-## TL;DR — 바로 돌리기 (결론)
+## TL;DR — 바로 돌리기
 
-### 목표 A. Colab에서 AI 환경 돌리기 ⭐ (가장 흔함)
-
-**0) 최초 1회: colab-cli 설치 + 인증** (안 하면 이후 명령이 멈춥니다)
+### 0) (최초 1회) colab-cli 설치 + 인증
 
 ```bash
 uv tool install "git+https://github.com/googlecolab/google-colab-cli"  # PyPI보다 최신인 git 버전
@@ -43,231 +42,70 @@ colab --auth=oauth2 whoami    # 출력 URL을 브라우저로 승인 → 인증 
 ```
 > `colab`은 `~/.local/bin/colab`에 깔립니다. 못 찾으면 PATH에 `~/.local/bin` 추가.
 
-**1) 노트북 실행** — 확정 환경 = **Python 3.11.9 + torch 2.4.0+cu124** (NVIDIA T4):
+### 1) 컨테이너를 Colab T4(NVIDIA)에서 실행·검증
 
 ```bash
-# ⭐ 확정 — T4(NVIDIA)에서 Pod과 동일하게 (Python 3.11.9 + torch cu124 + GPU)
-sh scripts/colab-run-notebook.sh t4
-
-# GPU 없이 패키지 버전만 빠르게 확인
-sh scripts/colab-run-notebook.sh cpu
+sh scripts/colab-run-notebook.sh t4     # 기본 = sagemaker-distribution, GPU(T4)
+sh scripts/colab-run-notebook.sh cpu    # GPU 없이 패키지만 확인
+# 다른 컨테이너: NB=containers/<이름>/colab-*.ipynb sh scripts/colab-run-notebook.sh t4
 ```
 
-(스크립트 기본 노트북이 `notebooks/colab-pod-clone-uv311.ipynb` 입니다.)
-GUI가 편하면 그 노트북을 Colab에서 열어 **Runtime → Change runtime type → T4 → Run all** 해도 동일합니다.
-
-> ⚠️ colab-cli는 **본인 Colab 계정의 컴퓨트(쿼터/구독)** 를 씁니다. T4는 등급에 따라 안 잡힐 수 있음.
-
-### 목표 B. 로컬에 Docker 이미지로 재현
+### 2) 로컬 Docker 이미지로 재현 (colima, GPU 없이 CPU)
 
 ```bash
-docker build -f Dockerfile.sagemaker -t pod-clone:cpu .   # 로컬 개발용(CPU)
-docker run --rm -it pod-clone:cpu python                  # torch/transformers/langchain... 그대로
-
-# GPU 클러스터 충실 재현(x86_64 + CUDA 12.4)
-docker build --platform linux/amd64 --build-arg TORCH_INDEX=cu124 -f Dockerfile.sagemaker -t pod-clone:gpu .
+cd containers/sagemaker-distribution
+docker build -t sagemaker-distribution:cpu .
+docker run --rm -it sagemaker-distribution:cpu python
 ```
 
-### 목표 C. macOS에 colima로 Docker + Kubernetes
+> 컨테이너별 상세(확정 스택·검증·환경 비교·주의)는 각 폴더 README에 있습니다.
+> 예: [`containers/sagemaker-distribution/README.md`](containers/sagemaker-distribution/README.md)
+
+---
+
+## 공통 워크플로우 (어떤 컨테이너든 동일)
+
+### A. colima로 Docker + Kubernetes (로컬 토대)
+
+**설치 버전**: Colima 0.10.3 · Docker CLI 29.6.0(Server 29.5.2) · Kubernetes(k3s) v1.35.0 · kubectl 1.36.2
 
 ```bash
 brew install colima docker kubectl
 colima start --kubernetes        # Docker 런타임 + k3s 함께 기동, kubectl 컨텍스트 자동 설정
 ```
 
----
+검증(완료): `docker run --rm hello-world` · `kubectl get nodes` (colima Ready) ·
+nginx 배포 → "Welcome to nginx!" 응답 확인. 라이프사이클: `colima status / stop / delete`,
+리소스 조정 `colima start --kubernetes --cpu 4 --memory 8`.
 
-## 검증 결과 (실측 완료)
-
-| 방식 | Python | 핵심 패키지 | torch / GPU |
-|---|---|---|---|
-| `notebooks/colab-pod-clone-uv311.ipynb` ⭐ (Colab+uv) | **3.11.9** | **20/20 일치** | **2.4.0+cu124** · CPU `False` / **T4 `True` (Tesla T4)** |
-| 로컬 `pod-clone` Docker 이미지 | 3.11.x | 20/20 일치 | 2.4.0 · colima는 GPU 없음(CPU) |
-
-> T4 실측: `torch 2.4.0+cu124` / built cuda `12.4` / cudnn `9.1` / 실제 GPU matmul 정상 →
-> Pod의 torch·CUDA·cuDNN까지 동일하게 재현.
-
-핵심 스택: torch 2.4.0 / transformers 4.49.0 / tokenizers 0.21.1 / huggingface-hub 0.26.5 /
-datasets 3.2.0 / accelerate 1.2.0 / langchain 1.2.10 / langgraph 1.0.10 / langsmith 0.7.13 /
-openai 2.26.0 / anthropic 0.84.0 / chromadb 1.3.6 / numpy 1.26.4 / pydantic 2.12.5.
-
----
-
-## 환경 비교 (실측)
-
-Colab 런타임은 공개 이미지(`us-docker.pkg.dev/colab-images/public/runtime`, GPU판 /
-`.../cpu-runtime`, linux/amd64)로 빌드됩니다. colab-cli로 붙는 런타임에서 직접 조회한 값:
-
-| 항목 | 우리 Pod (SageMaker) | Colab 런타임 (실측) | 우리 재현 (pod-clone + uv) |
-|---|---|---|---|
-| **OS** | Ubuntu 22.04.5 LTS | **Ubuntu 22.04.5 LTS** ✅ | Ubuntu 22.04 (이미지) / Colab 동일 |
-| 커널 | — | 6.6.122+ | — |
-| **Python** | 3.11.9 | 3.12.13 (시스템) | **uv venv 3.11.9** ✅ |
-| **torch** | 2.4.0+cu124 | 기본 설치 시 cu121 | **2.4.0+cu124** ✅ (강제 재설치) |
-| CUDA(런타임) | 12.4 | **torch 번들 12.4** | torch 번들 12.4 ✅ |
-| cuDNN | 9.1.0 (torch 번들) | 단일 시스템 cuDNN 없음 — 프레임워크별 번들 (TF 9.3.0 / 기본 torch 9.19.0) | **torch 번들 9.1.0** ✅ |
-| GPU(하드웨어) | NVIDIA (모델 미상 · **T4 아님**) | Tesla T4 / 드라이버 580.82.07 | ⚠️ **T4는 대체 GPU** (하드웨어 불일치) |
-
-**정리 — 무엇이 맞고 무엇이 한계인가**
-
-- ✅ **OS 동일**: 둘 다 Ubuntu 22.04.5 LTS.
-- ✅ **Python**: 시스템은 3.12지만 uv standalone 3.11.9로 맞춤(단, **venv/서브프로세스**로 실행).
-- ✅ **torch/CUDA/cuDNN**: torch가 **자체 번들 cu124(=CUDA 12.4, cuDNN 9.1.0)** 를 쓰므로 Pod과 동일.
-  Colab엔 단일 시스템 cuDNN이 없고 프레임워크마다 자기 걸 번들하지만(TF 9.3.0, 기본 torch 9.19.0),
-  우리 venv torch는 자기 번들 9.1.0을 쓰므로 그 값들과 무관합니다.
-- ⚠️ **GPU 하드웨어는 일치시키지 않습니다**: Pod의 실제 GPU 모델/드라이버는 우리가 쓰는 Colab
-  **T4와 다릅니다**(Pod GPU 모델은 미확인). T4는 "NVIDIA GPU 코드 경로를 테스트하기 위한 대체재"일
-  뿐이라, compute capability(T4 = sm_75)에 의존하는 코드는 Pod GPU에서 결과/성능이 다를 수 있습니다.
-
-> 조사 출처: [Colab local runtimes 문서](https://research.google.com/colaboratory/local-runtimes.html)
-> + colab-cli 런타임 직접 조회(`scripts/colab-probe.py`).
-
----
-
-## 파일 구조
-
-```
-.
-├── notebooks/
-│   └── colab-pod-clone-uv311.ipynb        ⭐ 확정: Colab에 Python 3.11.9(uv)+131패키지+torch cu124 설치·검증
-├── scripts/
-│   ├── collect-pod-env.sh      Pod 안에서 전체 환경 정보 수집 → tar
-│   ├── quick-summary.sh        Pod 핵심 버전 한 화면 요약(스크린샷용)
-│   ├── key-versions.sh         LangChain/LangGraph/HF 핵심 버전만 추출
-│   ├── freeze-from-image.sh    Docker 이미지 패키지 → Colab용 requirements 추출
-│   ├── freeze-local.sh         로컬 venv/conda 패키지 → requirements 추출
-│   ├── colab-sync.sh           colab new→install→검증 런북(requirements 지정)
-│   ├── colab-run-notebook.sh   노트북을 colab-cli로 CPU/T4 실행(기본 노트북=uv311)
-│   ├── verify-colab-env.py     Colab에서 핵심 라이브러리 버전 출력
-│   └── colab-probe.py          Colab 런타임 OS/CUDA/드라이버 조회
-├── Dockerfile.sagemaker        Pod 재현 Dockerfile(CPU/GPU 빌드 인자, 빌드 시 import 검증)
-├── Dockerfile.template         일반 재현용 주석 템플릿
-├── requirements-pod.txt        Pod top-level 라이브러리 정확 버전 고정
-└── README.md
-```
-
-> 생성물(gitignore): `colab-sync/`(머신별 requirements), `*_output.ipynb`(colab exec 실행 결과).
-
----
-
-## 배경 & 상세
-
-### 1. macOS에 colima로 Docker + Kubernetes
-
-**왜 colima?** Docker Desktop은 일정 규모 이상 기업에서 **유료 구독 라이선스**가 필요합니다.
-[colima](https://github.com/abiosoft/colima)는 **MIT 라이선스 오픈소스**로, 라이선스 부담 없이
-동일한 `docker`/`kubectl` CLI를 그대로 쓸 수 있어 회사 환경에서 안전합니다. (Docker Desktop
-미설치 — colima가 띄우는 Linux VM 안의 Docker 엔진에 CLI가 붙습니다.)
-
-**환경**: macOS (Apple Silicon, aarch64) · macOS Virtualization.Framework · Homebrew
-
-**설치 버전**: Colima 0.10.3 · Docker CLI 29.6.0(Server 29.5.2) · Kubernetes(k3s) v1.35.0 · kubectl 1.36.2
-
-```bash
-brew install colima docker kubectl
-colima start --kubernetes
-```
-
-**테스트(검증 완료)**:
-
-```bash
-docker run --rm hello-world          # "Hello from Docker!"
-kubectl get nodes -o wide            # 노드 colima → Ready (control-plane)
-kubectl get pods -A                  # coredns / local-path-provisioner / metrics-server Running
-# 실제 워크로드: nginx 배포 → Running → "Welcome to nginx!" 응답 확인 → 정리
-```
-
-**참고 명령어**:
-
-```bash
-colima start --kubernetes --cpu 4 --memory 8   # 리소스 조정(기본 2코어/2GiB)
-colima status / stop / delete                  # 상태 / 중지 / VM 삭제
-brew services start colima                      # 로그인 시 자동 시작
-```
-
-### 2. Pod 환경 → 로컬 Docker 이미지 재현
-
-쉘에만 접근 가능한 Pod(여기선 **SageMaker Distribution**, conda 기반)의 환경을 로컬 Docker
-이미지로 복제합니다.
+### B. 원본 환경 수집 → Dockerfile 재현
 
 **핵심 전략**: `pip freeze` 전체를 베끼지 않습니다. conda/SageMaker 이미지의 freeze는 다수가
-`@ file:///tmp/...` 로컬 휠이거나 환경 전용 패키지라 재현 불가입니다. 대신 **직접 import 하는
+`@ file:///tmp/...` 로컬 휠/환경 전용 패키지라 재현 불가입니다. 대신 **직접 import 하는
 top-level 라이브러리만 정확한 버전으로 고정**하고 pip가 나머지를 풀게 합니다.
 
-| 파일 | 용도 |
+| 스크립트 | 용도 |
 |---|---|
-| `scripts/collect-pod-env.sh` | Pod 안에서 전체 환경 정보 수집(OS·pip·conda·CUDA·시스템 패키지) → tar |
+| `scripts/collect-pod-env.sh` | 컨테이너 쉘에서 전체 환경 정보 수집(OS·pip·conda·CUDA·시스템 패키지) → tar |
 | `scripts/quick-summary.sh` | OS / Python / torch+CUDA / 핵심 라이브러리만 한 화면 요약(스크린샷용) |
 | `scripts/key-versions.sh` | LangChain/LangGraph/HuggingFace 핵심 패키지 버전만 추출 |
-| `requirements-pod.txt` | 확인한 top-level 라이브러리 정확 버전 고정 |
-| `Dockerfile.sagemaker` | 자급식 재현 Dockerfile (CPU/GPU 빌드 인자, 빌드 시 import 검증 포함) |
-| `Dockerfile.template` | 일반 재현용 주석 템플릿 |
+| `scripts/freeze-from-image.sh` | Docker 이미지 안의 패키지 → Colab용 requirements 추출 |
+| `scripts/freeze-local.sh` | 로컬 venv/conda 패키지 → requirements 추출 |
 
-**절차**: Pod에서 `sh quick-summary.sh`로 버전 확인(스크린샷이 손입력보다 효율적) →
-`requirements-pod.txt` 맞춤 → 위 [목표 B](#목표-b-로컬에-docker-이미지로-재현)로 빌드.
+### C. Colab에 동기화 (google-colab-cli)
 
-재현 환경: Ubuntu 22.04 / Python 3.11.9 / torch 2.4.0(+cu124) / 위 핵심 스택.
+원본 패키지를 **원격 Colab 런타임에 설치해 Colab을 우리 환경에 맞춥니다.**
+[google-colab-cli](https://github.com/googlecolab/google-colab-cli)(Google 공식)로 자동화.
 
-> ⚠️ apex, smdistributed, 환경 전용·분산학습용 패키지는 외부에서 재현 불가라 제외했습니다.
-> 그런 기능이 필요하면 실제 SMD 이미지를 베이스로 쓰세요.
-
-### 3. 이미지/로컬 패키지 → Colab 동기화 (google-colab-cli)
-
-위 2번이 "Pod → 로컬 이미지"였다면, 이건 반대로 **그 패키지들을 원격 Colab 런타임에 설치해
-Colab을 우리 환경에 맞추는** 작업입니다. [google-colab-cli](https://github.com/googlecolab/google-colab-cli)(Google 공식)로 자동화합니다.
-
-| 파일 | 용도 |
+| 스크립트 | 용도 |
 |---|---|
-| `scripts/freeze-from-image.sh` | **Docker 이미지** 안의 패키지 → `colab-sync/requirements-image.txt` 추출 |
-| `scripts/freeze-local.sh` | 로컬 venv/conda 환경 → `colab-sync/requirements-{full,top}.txt` 추출 |
-| `scripts/colab-sync.sh` | `colab new → install -r → exec(검증)` 런북 (세션·requirements·GPU 인자) |
-| `scripts/colab-run-notebook.sh` | 노트북을 colab-cli로 CPU·T4에서 실행 (기본 노트북 = uv311, `NB=...`로 변경) |
+| `scripts/colab-run-notebook.sh` | 컨테이너 노트북을 colab-cli로 CPU/T4 실행 (`NB=...`로 컨테이너 지정) |
+| `scripts/colab-sync.sh` | `colab new → install -r → exec(검증)` 런북 (requirements 직접 지정) |
 | `scripts/verify-colab-env.py` | Colab에서 핵심 라이브러리 버전 출력(비교용) |
-| `scripts/colab-probe.py` | Colab 런타임의 OS/CUDA/드라이버 조회(환경 비교용) |
-| `notebooks/colab-pod-clone-uv311.ipynb` | ⭐ **확정 노트북** — uv로 Python 3.11.9 venv 생성 → 131개 패키지 + torch cu124 설치 → 검증 |
+| `scripts/colab-probe.py` | Colab 런타임 OS/CUDA/cuDNN/드라이버 조회(환경 비교용) |
 
-#### 확정 노트북 동작 방식 (`notebooks/colab-pod-clone-uv311.ipynb`)
+핵심 주의(상세는 컨테이너 README): Colab 런타임 Python은 3.12라 `colab new`로는 버전 선택
+불가 → **uv venv로 3.11.9를 별도 구성**. 세션은 휘발성이라 매 세션 설치 필요. colab-cli는
+본인 Colab 컴퓨트(쿼터/구독)를 사용.
 
-- 현재 **Colab 런타임은 Python 3.12.13**이고, **google-colab-cli는 가속기(CPU/GPU/TPU)만
-  고를 수 있을 뿐 런타임 버전(=Python 버전)은 선택 못 합니다** (`colab new --help`로 확인).
-- 그래서 **`uv venv --python 3.11.9`** 로 standalone CPython을 받아 별도 venv에 설치해
-  Pod의 파이썬 패치 버전까지 맞춥니다.
-  - 이 3.11.9는 **venv/서브프로세스**입니다(노트북 셀 커널은 3.12 그대로). 실제 코드는
-    `/content/py311/bin/python script.py` 또는 `uv run`으로 실행하세요.
-  - NVIDIA 드라이버는 시스템 레벨이라 **venv에서도 GPU(`cuda? True`)가 잡힙니다** (T4 실측 확인).
-  - torch는 cu124로 강제 설치(아래), uv라 설치가 매우 빠릅니다(≈ 수 초).
-
-#### CUDA 빌드까지 정확히 맞추기 (cu124)
-
-기본 설치는 `torch==2.4.0` → PyPI 기본 빌드(**cu121**)가 깔립니다(GPU는 됨). Pod의
-`torch 2.4.0+cu124`까지 정확히 맞추려면 PyTorch **cu124 인덱스**에서 받습니다:
-
-```bash
-uv pip install --python /content/py311/bin/python \
-    torch==2.4.0 torchvision==0.19.0 torchaudio==2.4.0 \
-    --index-url https://download.pytorch.org/whl/cu124
-```
-
-확정 노트북은 이미 이 방식으로 cu124를 설치합니다. **T4 실측**: `torch 2.4.0+cu124` /
-built cuda `12.4` / cudnn `9.1` / `cuda available True` / Tesla T4(드라이버 580.82.07) →
-Pod의 torch·CUDA·cuDNN을 모두 정확히 재현.
-
-> 주의: requirements가 torch(cu121)를 먼저 깔면, 뒤이은 cu124 설치가 "이미 충족"으로 보고
-> 건너뜁니다. 그래서 노트북은 `--reinstall-package torch torchvision torchaudio` 로 **강제
-> 재설치**합니다. cu124 휠은 `nvidia-*-cu12 12.4` 런타임(약 2GB)을 함께 가져오므로 CPU
-> 전용이면 생략 가능합니다.
-
-#### 헤드리스 실행 시 주의 (numpy ABI)
-
-`colab exec`로 노트북을 돌릴 때, numpy를 다운그레이드(2.x→1.26.4)한 뒤 **같은 커널에서 바로
-import하면** `numpy.dtype size changed ... ABI` 에러가 납니다. 그래서 노트북의 검증/스모크
-셀은 **별도 인터프리터(`%%python3` 또는 venv python)** 에서 돌립니다. 인터랙티브로 Run all 할
-때는 다운그레이드 후 **Runtime → Restart session** 후 검증 셀부터 다시 실행하면 됩니다.
-
-#### 기타 주의
-
-- **세션은 휘발성**입니다. 새 세션마다 설치를 다시 해야 합니다(그래서 스크립트화).
-- 전체(`requirements-full.txt`) 강제 설치는 Colab 기본 패키지를 깨뜨릴 수 있으니, 필요한
-  top-level만 설치하는 걸 권장합니다.
-- 플랫폼 한정 패키지(예: macOS 전용)는 Colab(Linux)에서 설치 실패하므로 추출 시 제외됩니다.
-- `*_output.ipynb`(colab exec 실행 결과)와 `colab-sync/`(머신별 생성물)는 gitignore 처리됩니다.
+> 생성물(gitignore): `colab-sync/`(머신별 requirements), `*_output.ipynb`(colab exec 실행 결과).

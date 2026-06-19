@@ -4,7 +4,7 @@
 #
 # Pod 환경(수집 확인):
 #   Ubuntu 22.04.5 / Python 3.11.9 / torch 2.4.0+cu124 / CUDA 12.4 / cuDNN 9.1
-#   transformers 4.49.0, langchain 1.2.10, langgraph 1.0.10 등 (requirements-pod.txt)
+#   transformers 4.49.0, langchain 1.2.10, langgraph 1.0.10 등 (requirements.txt)
 #
 # 설계 메모:
 #   - Pod의 pip freeze 중 다수는 `@ file:///tmp/...` 로컬 휠이지만 전부 PyPI 정식 버전.
@@ -12,16 +12,16 @@
 #   - 환경 전용·분산학습용 패키지는 외부 재현 불가라 제외.
 #     (그런 기능이 필요하면 실제 SMD 이미지를 베이스로 써야 함)
 #
-# 빌드:
+# 빌드 (이 디렉토리에서):
 #   로컬 개발 (colima, arm64, GPU 없음 → CPU torch):
-#       docker build -f Dockerfile.sagemaker -t pod-clone:cpu .
+#       docker build -t sagemaker-distribution:cpu .
 #   GPU 클러스터 충실 재현 (x86_64 + CUDA 12.4):
 #       docker build --platform linux/amd64 --build-arg TORCH_INDEX=cu124 \
-#                    -f Dockerfile.sagemaker -t pod-clone:gpu .
+#                    -t sagemaker-distribution:gpu .
 #
 # 실행:
-#   docker run --rm -it pod-clone:cpu python
-#   docker run --rm -it --gpus all pod-clone:gpu python   # GPU 노드에서
+#   docker run --rm -it sagemaker-distribution:cpu python
+#   docker run --rm -it --gpus all sagemaker-distribution:gpu python   # GPU 노드에서
 # =============================================================================
 
 FROM python:3.11-slim
@@ -48,8 +48,8 @@ RUN pip install \
         --index-url "https://download.pytorch.org/whl/${TORCH_INDEX}"
 
 # 2) 나머지 top-level 라이브러리 (Pod에서 확인한 정확한 버전)
-COPY requirements-pod.txt .
-RUN pip install -r requirements-pod.txt
+COPY requirements.txt .
+RUN pip install -r requirements.txt
 
 # 3) 설치 검증 — 빌드 시점에 핵심 import가 되는지 확인
 RUN python - <<'PY'
