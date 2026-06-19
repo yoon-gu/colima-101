@@ -1,0 +1,54 @@
+# =============================================================================
+# Pod 재현용 Dockerfile 템플릿 (HuggingFace / LangChain / LangGraph 개발자용)
+# scripts/collect-pod-env.sh 로 모은 정보를 아래 빈칸에 채워 넣으세요.
+# =============================================================================
+
+# --- 1) 베이스 이미지 선택 ---------------------------------------------------
+# os-release.txt + torch-cuda.txt 를 보고 하나를 고르세요:
+#
+#  (a) GPU/CUDA 필요 + torch가 +cuXXX 빌드인 경우  -> CUDA 런타임 베이스
+#        FROM nvidia/cuda:12.1.1-cudnn8-runtime-ubuntu22.04
+#  (b) PyTorch 공식 이미지를 쓰던 경우
+#        FROM pytorch/pytorch:2.3.1-cuda12.1-cudnn8-runtime
+#  (c) CPU만 쓰는 일반 환경 (python-which.txt 의 버전에 맞춤)
+FROM python:3.11-slim
+
+ENV PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    # HF 캐시를 명시해두면 레이어 캐싱/볼륨 관리가 쉬워집니다
+    HF_HOME=/opt/hf-cache
+
+# --- 2) 시스템 패키지 --------------------------------------------------------
+# system-packages.txt 에서 꼭 필요한 것만 추립니다(전체 복사 금지).
+# AI 환경에서 자주 필요한 최소 세트 예시:
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        git \
+        build-essential \
+        ca-certificates \
+        curl \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /workspace
+
+# --- 3) PyTorch 먼저 고정 설치 (CUDA 매칭이 핵심!) ---------------------------
+# torch-cuda.txt 가 예: torch 2.3.1 / cuda_build 12.1 이면 cu121 인덱스 사용.
+# CPU 전용이면 이 블록을 지우고 4)의 requirements 에 torch 를 포함하세요.
+# RUN pip install --index-url https://download.pytorch.org/whl/cu121 \
+#         torch==2.3.1 torchvision torchaudio
+
+# --- 4) 나머지 파이썬 의존성 -------------------------------------------------
+# requirements.txt 에서 torch 계열(torch/torchvision/torchaudio)은 제거한 뒤 복사.
+COPY requirements.txt .
+RUN pip install -r requirements.txt
+
+# 또는 핵심만 명시적으로(버전은 requirements.txt 값으로 교체):
+# RUN pip install \
+#         "transformers==X.Y.Z" \
+#         "langchain==X.Y.Z" \
+#         "langgraph==X.Y.Z" \
+#         "langchain-core==X.Y.Z" \
+#         "datasets" "accelerate"
+
+# --- 5) 실행 진입점 ----------------------------------------------------------
+# pid1-cmdline.txt 가 컨테이너의 실제 실행 명령 힌트입니다.
+CMD ["python"]
