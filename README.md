@@ -112,9 +112,12 @@ Colab 런타임은 공개 이미지(`us-docker.pkg.dev/colab-images/public/runti
 - ✅ **OS 동일**: 둘 다 Ubuntu 22.04.5 LTS.
 - ✅ **Python**: 시스템은 3.12지만 uv standalone 3.11.9로 맞춤(단, **venv/서브프로세스**로 실행).
 - ✅ **torch/CUDA/cuDNN**: torch가 **자체 번들 cu124(=CUDA 12.4, cuDNN 9.1)** 를 쓰므로 Pod과 동일.
-- ⚠️ **한계**: Colab **시스템** CUDA toolkit은 12.8입니다. torch 연산엔 영향 없지만, **시스템 nvcc로
-  CUDA 확장을 직접 컴파일**하면 12.8이 잡힙니다(이 경우에만 Pod의 12.4와 차이). 또한 커널/드라이버
-  등 하드웨어 레벨은 Colab이 정하므로 동일하게 고정할 수 없습니다.
+- ⚠️ **유일한 차이 — 시스템 nvcc(컴파일러)**: Colab 시스템 nvcc는 12.8(Pod은 12.4). 이건
+  **CUDA 커널을 소스에서 직접 컴파일**할 때만 영향이 있습니다. uv/pip의 `nvidia-cuda-nvcc-cu12`
+  (12.4)를 깔아봤지만 **`ptxas`만 들어있고 nvcc 드라이버 본체는 없어**(실측, `colab-cudatoolkit-experiment.ipynb`)
+  uv로는 nvcc 12.4를 깔끔히 못 맞춥니다. 진짜 nvcc가 필요하면 **conda**(`cuda-nvcc=12.4`)나 공식
+  설치를 써야 합니다. 단, 우리 스택은 소스 컴파일이 없으므로 실무상 문제 없습니다.
+- 커널/드라이버 등 하드웨어 레벨은 Colab이 정하므로 동일하게 고정할 수 없습니다(단, T4=NVIDIA로 충분).
 
 > 조사 출처: [Colab local runtimes 문서](https://research.google.com/colaboratory/local-runtimes.html)
 > + colab-cli 런타임 직접 조회(`colab-probe.py`).
