@@ -14,8 +14,8 @@
 - **확정 스택**: Python **3.11.9** / **torch 2.4.0+cu124** (CUDA 12.4 · cuDNN 9.1) +
   HuggingFace / LangChain / LangGraph. (CPU·T4 양쪽 실측 검증 완료)
 
-> **Pod ↔ Colab 환경 차이?** 아래 [환경 비교](#환경-비교-실측)에 실측 정리. 결론부터:
-> **Ubuntu 버전은 우연히 동일(22.04.5)**, 다른 건 시스템 Python(3.12)뿐인데 uv로 3.11.9를 맞춥니다.
+> **Pod ↔ Colab 환경 비교**는 아래 [환경 비교](#환경-비교-실측) 참고. OS(Ubuntu 22.04.5)는
+> 동일하고, 시스템 Python(3.12)만 uv로 3.11.9를 맞춥니다.
 
 작업은 세 갈래입니다.
 
@@ -109,7 +109,7 @@ Colab 런타임은 공개 이미지(`us-docker.pkg.dev/colab-images/public/runti
 
 **정리 — 무엇이 맞고 무엇이 한계인가**
 
-- ✅ **Ubuntu는 우연히 동일(22.04.5)**. 걱정하셨던 "Ubuntu 버전 못 맞춤"은 실제론 일치합니다.
+- ✅ **OS 동일**: 둘 다 Ubuntu 22.04.5 LTS.
 - ✅ **Python**: 시스템은 3.12지만 uv standalone 3.11.9로 맞춤(단, **venv/서브프로세스**로 실행).
 - ✅ **torch/CUDA/cuDNN**: torch가 **자체 번들 cu124(=CUDA 12.4, cuDNN 9.1)** 를 쓰므로 Pod과 동일.
 - ⚠️ **한계**: Colab **시스템** CUDA toolkit은 12.8입니다. torch 연산엔 영향 없지만, **시스템 nvcc로
