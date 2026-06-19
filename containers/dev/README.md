@@ -1,7 +1,7 @@
-# sagemaker-distribution 컨테이너
+# dev 컨테이너 (개발 편의용)
 
-우리 코드가 실제로 도는 **SageMaker Distribution Pod**(conda 기반, Studio/노트북 환경)을
-재현합니다. NVIDIA GPU가 필요한 부분은 Colab T4로 검증합니다.
+**개발을 편하게** 하기 위해, 우리 코드가 실제로 도는 **SageMaker Distribution Pod**
+(conda 기반, Studio/노트북 환경)을 로컬에 재현합니다. NVIDIA GPU가 필요한 부분은 Colab T4로 검증합니다.
 
 ## 확정 스택 (실측 검증 완료)
 
@@ -28,12 +28,12 @@
 ## A) 로컬 Docker 이미지로 재현 (NVIDIA 없이 CPU 검증)
 
 ```bash
-cd containers/sagemaker-distribution
-docker build -t sagemaker-distribution:cpu .
-docker run --rm -it sagemaker-distribution:cpu python
+cd containers/dev
+docker build -t dev:cpu .
+docker run --rm -it dev:cpu python
 
 # GPU 클러스터 충실 재현(x86_64 + CUDA 12.4)
-docker build --platform linux/amd64 --build-arg TORCH_INDEX=cu124 -t sagemaker-distribution:gpu .
+docker build --platform linux/amd64 --build-arg TORCH_INDEX=cu124 -t dev:gpu .
 ```
 
 ## B) Colab T4에서 NVIDIA GPU로 검증
@@ -71,5 +71,5 @@ sh scripts/colab-run-notebook.sh t4    # 또는 cpu
 - **헤드리스 numpy ABI**: numpy 다운그레이드 후 같은 커널 import 시 `numpy.dtype size changed`
   에러 → 검증/스모크는 별도 인터프리터(venv python)에서 실행. 인터랙티브면 Restart 후 재실행.
 - **세션은 휘발성**: 새 Colab 세션마다 설치 재실행 필요.
-- 환경 전용·분산학습용 패키지(apex, smdistributed 등)는 외부 재현 불가라 제외 →
-  학습 환경은 [`sagemaker-training`](../sagemaker-training/) 컨테이너에서 별도 진행([issue #2](https://github.com/yoon-gu/colima-101/issues/2)).
+- 환경 전용·분산 인프라 패키지(apex, smdistributed 등)는 외부 재현 불가라 제외(개발엔 불필요).
+  운영 추론 job 환경은 [`inference`](../inference/) 컨테이너 참고.

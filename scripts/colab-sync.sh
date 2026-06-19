@@ -10,7 +10,7 @@
 # 사용법:
 #   sh scripts/colab-sync.sh <session> <requirements.txt> [GPU]
 #   예) sh scripts/colab-sync.sh mysync colab-sync/requirements-top.txt T4
-#   예) sh scripts/colab-sync.sh mysync containers/sagemaker-distribution/requirements.txt   # CPU 세션
+#   예) sh scripts/colab-sync.sh mysync containers/dev/requirements.txt   # CPU 세션
 #
 # 참고: Colab 세션은 휘발성이라 새 세션마다 install을 다시 돌려야 한다(그래서 스크립트화).
 set -e

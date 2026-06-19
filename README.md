@@ -9,7 +9,7 @@
 확인 → ② 같은 코드를 **NVIDIA GPU로 테스트**하려고 **Colab T4** 사용.
 
 이 저장소는 그렇게 재현하는 **여러 SageMaker 컨테이너를 계속 모아가는 곳**입니다.
-(현재: `sagemaker-distribution`. 예정: `sagemaker-training` 등)
+(현재: `dev`. 예정: `inference` 등)
 
 > 🔑 **왜 colima인가**: 로컬 Docker는 **Docker Desktop을 안 쓰고 colima(MIT 오픈소스)** 로
 > 돌립니다. Docker Desktop은 일정 규모 이상 기업에서 **유료 라이선스**가 필요하지만, colima는
@@ -22,8 +22,8 @@
 ├── containers/                     # 컨테이너별 재현 정의 (각자 Dockerfile/requirements/notebook/README)
 │   ├── README.md                   #   └ 컨테이너 목록 + 추가 가이드
 │   ├── _template/                  #   └ 새 컨테이너 스캐폴드
-│   ├── sagemaker-distribution/     #   └ ✅ 우리 코드가 도는 Pod (Python 3.11.9 / torch 2.4.0+cu124)
-│   └── sagemaker-training/         #   └ 🚧 학습 컨테이너 (작업 예정, #2)
+│   ├── dev/                     #   └ ✅ 개발 편의용 — 우리 코드가 도는 Pod (Python 3.11.9 / torch 2.4.0+cu124)
+│   └── inference/               #   └ 🚧 운영 추론 job 편의용 (작업 예정, #2)
 ├── scripts/                        # 공통 도구 (컨테이너 무관)
 └── README.md                       # (이 파일) 목적 · 공통 워크플로우
 ```
@@ -45,7 +45,7 @@ colab --auth=oauth2 whoami    # 출력 URL을 브라우저로 승인 → 인증 
 ### 1) 컨테이너를 Colab T4(NVIDIA)에서 실행·검증
 
 ```bash
-sh scripts/colab-run-notebook.sh t4     # 기본 = sagemaker-distribution, GPU(T4)
+sh scripts/colab-run-notebook.sh t4     # 기본 = dev, GPU(T4)
 sh scripts/colab-run-notebook.sh cpu    # GPU 없이 패키지만 확인
 # 다른 컨테이너: NB=containers/<이름>/colab-*.ipynb sh scripts/colab-run-notebook.sh t4
 ```
@@ -53,13 +53,13 @@ sh scripts/colab-run-notebook.sh cpu    # GPU 없이 패키지만 확인
 ### 2) 로컬 Docker 이미지로 재현 (colima, GPU 없이 CPU)
 
 ```bash
-cd containers/sagemaker-distribution
-docker build -t sagemaker-distribution:cpu .
-docker run --rm -it sagemaker-distribution:cpu python
+cd containers/dev
+docker build -t dev:cpu .
+docker run --rm -it dev:cpu python
 ```
 
 > 컨테이너별 상세(확정 스택·검증·환경 비교·주의)는 각 폴더 README에 있습니다.
-> 예: [`containers/sagemaker-distribution/README.md`](containers/sagemaker-distribution/README.md)
+> 예: [`containers/dev/README.md`](containers/dev/README.md)
 
 ---
 

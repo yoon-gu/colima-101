@@ -14,14 +14,14 @@
 #
 # 빌드 (이 디렉토리에서):
 #   로컬 개발 (colima, arm64, GPU 없음 → CPU torch):
-#       docker build -t sagemaker-distribution:cpu .
+#       docker build -t dev:cpu .
 #   GPU 클러스터 충실 재현 (x86_64 + CUDA 12.4):
 #       docker build --platform linux/amd64 --build-arg TORCH_INDEX=cu124 \
-#                    -t sagemaker-distribution:gpu .
+#                    -t dev:gpu .
 #
 # 실행:
-#   docker run --rm -it sagemaker-distribution:cpu python
-#   docker run --rm -it --gpus all sagemaker-distribution:gpu python   # GPU 노드에서
+#   docker run --rm -it dev:cpu python
+#   docker run --rm -it --gpus all dev:gpu python   # GPU 노드에서
 # =============================================================================
 
 FROM python:3.11-slim

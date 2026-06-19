@@ -1,7 +1,7 @@
 #!/usr/bin/env sh
 # 컨테이너의 colab 노트북을 google-colab-cli로 CPU/T4 인스턴스에서 실행한다.
 # 노트북 안에 설치+검증 셀이 모두 있어 colab exec 한 번으로 끝난다.
-# 기본 노트북 = containers/sagemaker-distribution/colab-uv311.ipynb (NB=...로 다른 컨테이너 지정)
+# 기본 노트북 = containers/dev/colab-uv311.ipynb (NB=...로 다른 컨테이너 지정)
 #
 # 사전(최초 1회, 꼭 먼저!):
 #   uv tool install "git+https://github.com/googlecolab/google-colab-cli"   # PyPI보다 최신
@@ -15,7 +15,7 @@
 #
 # 참고: 설치(131개)가 오래 걸리므로 exec 타임아웃을 넉넉히(기본 1800초) 준다.
 
-NB="${NB:-containers/sagemaker-distribution/colab-uv311.ipynb}"
+NB="${NB:-containers/dev/colab-uv311.ipynb}"
 TIMEOUT="${TIMEOUT:-1800}"
 WHICH="${1:-all}"
 

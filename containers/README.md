@@ -7,8 +7,8 @@
 
 | 컨테이너 | 설명 | 상태 |
 |---|---|---|
-| [`sagemaker-distribution/`](sagemaker-distribution/) | 우리 코드가 도는 SageMaker Distribution(Studio/개발) Pod 재현. Python 3.11.9 / torch 2.4.0+cu124 | ✅ 검증 완료 |
-| [`sagemaker-training/`](sagemaker-training/) | SageMaker training(DLC) 학습 환경 재현 | 🚧 작업 예정 ([#2](https://github.com/yoon-gu/colima-101/issues/2)) |
+| [`dev/`](dev/) | **개발 편의용** — SageMaker Distribution(Studio/개발) Pod 재현. Python 3.11.9 / torch 2.4.0+cu124 | ✅ 검증 완료 |
+| [`inference/`](inference/) | **운영 추론 job 편의용** — 추론/서빙 환경 재현 | 🚧 작업 예정 ([#2](https://github.com/yoon-gu/colima-101/issues/2)) |
 
 ## 새 컨테이너 추가하는 법
 
