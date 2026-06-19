@@ -157,13 +157,23 @@ CPU torch로 빌드되어 `torch.cuda.is_available()`는 `False`이지만 버전
 > 참고: Colab은 공식 Docker 이미지(`us-docker.pkg.dev/colab-images/public/runtime`)도
 > 공개하므로, 반대로 "Colab 환경을 로컬에 가져오기"는 그 이미지를 pull 하면 됩니다.
 
-### 설치 (최초 1회)
+### ⚠️ 설치 + 인증 (최초 1회, 꼭 먼저!)
+
+아래 두 줄을 **반드시 먼저** 실행해야 이후 모든 colab 명령/스크립트가 동작합니다.
 
 ```bash
-uv tool install google-colab-cli   # 또는: pip install google-colab-cli
+# 1) 설치 — PyPI(0.6.0)보다 최신인 git 버전 사용
+uv tool install "git+https://github.com/googlecolab/google-colab-cli"
+
+# 2) 인증 — 출력된 URL을 브라우저에서 열어 승인 → 인증 코드를 터미널에 붙여넣기
+colab --auth=oauth2 whoami
 ```
 
-첫 `colab` 명령 실행 시 브라우저로 Google OAuth 로그인이 뜹니다.
+`colab --auth=oauth2 whoami` 가 정상적으로 본인 계정을 출력하면 인증 완료입니다.
+(인증을 건너뛰면 `colab new` 등에서 멈춥니다.)
+
+> 참고: `colab`은 `~/.local/bin/colab`에 설치됩니다. 명령을 못 찾으면 PATH에
+> `~/.local/bin`을 추가하거나 전체 경로로 실행하세요.
 
 ### 도구
 

@@ -2,9 +2,9 @@
 # 로컬 패키지 목록을 원격 Colab 런타임에 설치해 환경을 "내 로컬"에 맞춘다.
 # google-colab-cli(=`colab`)를 감싼 런북 스크립트.
 #
-# 사전 준비(최초 1회):
-#   uv tool install google-colab-cli      # 또는 pip install google-colab-cli
-#   (로그인) 첫 colab 명령 실행 시 브라우저로 Google OAuth 로그인이 뜬다.
+# 사전 준비(최초 1회, 꼭 먼저!):
+#   uv tool install "git+https://github.com/googlecolab/google-colab-cli"   # PyPI보다 최신
+#   colab --auth=oauth2 whoami    # URL 승인 → 인증 코드 붙여넣기 → 본인 계정 출력되면 완료
 #   GCP 서비스(BigQuery 등)가 필요하면: colab --auth adc 사용
 #
 # 사용법:

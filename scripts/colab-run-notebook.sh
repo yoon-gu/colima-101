@@ -2,9 +2,9 @@
 # colab-pod-clone.ipynb 를 google-colab-cli로 CPU와 T4 두 인스턴스에서 실행한다.
 # 노트북 안에 설치+검증 셀이 모두 있어 colab exec 한 번으로 끝난다.
 #
-# 사전(최초 1회):
-#   uv tool install google-colab-cli
-#   첫 colab 명령 실행 시 브라우저로 Google OAuth 로그인이 뜬다.
+# 사전(최초 1회, 꼭 먼저!):
+#   uv tool install "git+https://github.com/googlecolab/google-colab-cli"   # PyPI보다 최신
+#   colab --auth=oauth2 whoami    # URL 승인 → 인증 코드 붙여넣기 → 본인 계정 출력되면 완료
 #
 # 사용법:
 #   sh scripts/colab-run-notebook.sh           # CPU + T4 둘 다
