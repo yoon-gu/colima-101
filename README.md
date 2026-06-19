@@ -183,8 +183,9 @@ colab --auth=oauth2 whoami
 | `scripts/freeze-from-image.sh` | **Docker 이미지** 안의 패키지 → `colab-sync/requirements-image.txt` 추출 |
 | `scripts/colab-sync.sh` | `colab new → install -r → exec(검증)` 런북. 세션·requirements·GPU 인자 |
 | `scripts/verify-colab-env.py` | Colab에서 실행돼 핵심 라이브러리 버전 출력(로컬과 비교) |
-| `colab-pod-clone.ipynb` | pod-clone 패키지를 임베드한 자급식 노트북(Run all로 설치+검증) |
-| `scripts/colab-run-notebook.sh` | 위 노트북을 colab-cli로 **CPU·T4 두 인스턴스**에서 실행 |
+| `colab-pod-clone.ipynb` | pod-clone 패키지를 임베드한 자급식 노트북(Run all로 설치+검증). Python은 Colab 기본(3.12) |
+| `colab-pod-clone-uv311.ipynb` | **uv로 Python 3.11.9 venv**를 만들어 설치+검증(이미지의 파이썬까지 정확히 일치) |
+| `scripts/colab-run-notebook.sh` | 노트북을 colab-cli로 **CPU·T4** 에서 실행(`NB=...`로 노트북 지정) |
 
 ### 절차
 
@@ -225,6 +226,20 @@ sh scripts/colab-run-notebook.sh t4     # T4 GPU만
 각 인스턴스에서 `colab new → colab exec -f <노트북> --timeout 1800 → colab log → colab stop`
 을 수행합니다. 설치가 오래 걸려 exec 타임아웃을 넉넉히 둡니다. GUI로 쓰려면 노트북을
 Colab에서 열어 **Runtime → (Change runtime type) → Run all** 해도 됩니다.
+
+#### Python 3.11.9까지 정확히 맞추기 (uv 사용)
+
+CLI로는 런타임 버전을 못 고르지만, **uv로 Colab 위에 standalone Python 3.11.9 venv**를
+만들면 이미지의 파이썬 패치 버전까지 맞출 수 있습니다. `colab-pod-clone-uv311.ipynb`가
+`uv venv --python 3.11.9 → uv pip install -r → venv로 검증`을 수행합니다.
+
+```bash
+NB=colab-pod-clone-uv311.ipynb sh scripts/colab-run-notebook.sh t4   # 또는 cpu
+```
+
+> 이 3.11.9 환경은 **venv/서브프로세스**입니다(노트북 커널은 3.12 그대로). 실제 코드는
+> `/content/py311/bin/python script.py` 또는 `uv run` 으로 실행하세요. NVIDIA 드라이버는
+> 시스템 레벨이라 venv에서도 GPU(`cuda? True`)가 잡힙니다.
 
 ### 주의
 
