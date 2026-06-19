@@ -145,3 +145,55 @@ CPU torch로 빌드되어 `torch.cuda.is_available()`는 `False`이지만 버전
 
 > ⚠️ 환경 전용·분산학습용 패키지는 외부에서 재현 불가라 제외했습니다. 그런 기능이
 > 필요하면 실제 SMD 이미지를 베이스로 쓰세요.
+
+---
+
+## 내 로컬 패키지를 Colab에 맞추기 (google-colab-cli)
+
+위 SageMaker 케이스가 "Pod → 로컬 이미지"였다면, 이건 반대 방향입니다.
+**내 로컬 Python 패키지들을 원격 Colab 런타임에 설치해 Colab을 내 환경에 일치**시킵니다.
+[google-colab-cli](https://github.com/googlecolab/google-colab-cli)(Google 공식)로 자동화합니다.
+
+> 참고: Colab은 공식 Docker 이미지(`us-docker.pkg.dev/colab-images/public/runtime`)도
+> 공개하므로, 반대로 "Colab 환경을 로컬에 가져오기"는 그 이미지를 pull 하면 됩니다.
+
+### 설치 (최초 1회)
+
+```bash
+uv tool install google-colab-cli   # 또는: pip install google-colab-cli
+```
+
+첫 `colab` 명령 실행 시 브라우저로 Google OAuth 로그인이 뜹니다.
+
+### 도구
+
+| 파일 | 용도 |
+|---|---|
+| `scripts/freeze-local.sh` | 로컬 환경 → `colab-sync/requirements-{full,top}.txt` 추출(로컬경로·URL 라인 제외) |
+| `scripts/colab-sync.sh` | `colab new → install -r → exec(검증)` 런북. 세션·requirements·GPU 인자 |
+| `scripts/verify-colab-env.py` | Colab에서 실행돼 핵심 라이브러리 버전 출력(로컬과 비교) |
+
+### 절차
+
+```bash
+# 1) 동기화할 환경의 패키지 추출 (특정 venv/conda면 PYBIN 지정)
+PYBIN=/path/to/venv/bin/python sh scripts/freeze-local.sh
+
+# 2) Colab 세션 생성 + 설치 + 검증 (GPU는 선택: T4/L4/A100 등)
+sh scripts/colab-sync.sh mysync colab-sync/requirements-top.txt T4
+
+# (이미 만든 SageMaker 스택을 그대로 올리고 싶으면)
+sh scripts/colab-sync.sh mysync requirements-pod.txt T4
+
+# 3) 끝나면 세션 정리
+colab stop -s mysync
+```
+
+### 주의
+
+- **Colab 기본 환경엔 이미 버전이 고정된 torch/CUDA/numpy 등이 있습니다.** 전체
+  `requirements-full.txt`를 강제 설치하면 Colab의 GPU용 torch가 깨질 수 있습니다.
+  → 기본은 `requirements-top.txt`(top-level만) 권장, torch는 꼭 필요할 때만 핀.
+- **세션은 휘발성**입니다. 새 세션마다 `colab install`을 다시 돌려야 합니다(그래서 스크립트화).
+- google-colab-cli는 **본인 Colab 계정의 컴퓨트(쿼터/구독)** 를 사용합니다.
+- 플랫폼 한정 패키지(예: macOS 전용)는 Colab(Linux)에서 설치 실패하므로 추출 시 제외합니다.
