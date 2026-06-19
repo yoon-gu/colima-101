@@ -44,6 +44,8 @@
 
 ## TODO
 
+- [ ] **DLC가 Pod 베이스와 일치하는지 대조** — `IMAGE=...pytorch-inference:... sh scripts/compare-dlc.sh`
+      (dev Pod 베이스는 `pytorch-training:2.4.0-gpu-py311-cu124-ubuntu22.04-sagemaker` 로 확인됨, [#2](https://github.com/yoon-gu/colima-101/issues/2))
 - [ ] **local mode + colima로 실제 추론 DLC 실행** 검토 (SDK `instance_type='local'`)
 
 - [ ] 운영 추론 job이 쓰는 베이스 이미지/런타임 확인 (SageMaker inference DLC, torchserve 등)
