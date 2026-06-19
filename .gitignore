@@ -222,3 +222,6 @@ colab-sync/
 
 # colab exec 실행 결과 노트북(생성물)
 *_output.ipynb
+
+# MNIST 예제 데이터(스크립트로 재생성)
+examples/sagemaker-pytorch-mnist/data/
