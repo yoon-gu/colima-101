@@ -43,14 +43,14 @@ colab --auth=oauth2 whoami    # 출력 URL을 브라우저로 승인 → 인증 
 
 ```bash
 # ⭐ 확정 — T4(NVIDIA)에서 Pod과 동일하게 (Python 3.11.9 + torch cu124 + GPU)
-NB=colab-pod-clone-uv311.ipynb sh scripts/colab-run-notebook.sh t4
+sh scripts/colab-run-notebook.sh t4
 
-# GPU 없이 패키지 버전만 빠르게 확인 (torch cu124 줄은 CPU에선 불필요)
-NB=colab-pod-clone-uv311.ipynb sh scripts/colab-run-notebook.sh cpu
+# GPU 없이 패키지 버전만 빠르게 확인
+sh scripts/colab-run-notebook.sh cpu
 ```
 
-GUI가 편하면 `colab-pod-clone-uv311.ipynb`를 Colab에서 열어
-**Runtime → Change runtime type → T4 → Run all** 해도 동일합니다.
+(스크립트 기본 노트북이 `notebooks/colab-pod-clone-uv311.ipynb` 입니다.)
+GUI가 편하면 그 노트북을 Colab에서 열어 **Runtime → Change runtime type → T4 → Run all** 해도 동일합니다.
 
 > ⚠️ colab-cli는 **본인 Colab 계정의 컴퓨트(쿼터/구독)** 를 씁니다. T4는 등급에 따라 안 잡힐 수 있음.
 
@@ -75,15 +75,13 @@ colima start --kubernetes        # Docker 런타임 + k3s 함께 기동, kubectl
 
 ## 검증 결과 (실측 완료)
 
-| 방식 | Python | 핵심 패키지 | GPU / torch 빌드 |
+| 방식 | Python | 핵심 패키지 | torch / GPU |
 |---|---|---|---|
-| `colab-pod-clone-uv311.ipynb` (uv venv) ⭐ | **3.11.9** | **20/20 일치** | CPU `False` / **T4 `True`** · torch cu121 |
-| `colab-cu124-experiment.ipynb` (cu124 정확 매칭) | 3.11.9 | torch 계열 | **T4 `True` · torch 2.4.0+cu124 / cuda 12.4 / cudnn 9.1** |
-| `colab-pod-clone.ipynb` (Colab 기본 커널) | 3.12.13 | 20/20 일치 | CPU·T4 모두 확인 · torch cu121 |
-| 로컬 `pod-clone` Docker 이미지 | 3.11.x | 20/20 일치 | colima는 GPU 없음(CPU) |
+| `notebooks/colab-pod-clone-uv311.ipynb` ⭐ (Colab+uv) | **3.11.9** | **20/20 일치** | **2.4.0+cu124** · CPU `False` / **T4 `True` (Tesla T4)** |
+| 로컬 `pod-clone` Docker 이미지 | 3.11.x | 20/20 일치 | 2.4.0 · colima는 GPU 없음(CPU) |
 
-> torch의 CUDA 빌드까지 Pod와 동일하게(**cu124**) 맞추고 싶으면
-> [CUDA 빌드까지 정확히 맞추기](#cuda-빌드까지-정확히-맞추기-cu124) 참고. T4에서 GPU 연산까지 검증됨.
+> T4 실측: `torch 2.4.0+cu124` / built cuda `12.4` / cudnn `9.1` / 실제 GPU matmul 정상 →
+> Pod의 torch·CUDA·cuDNN까지 동일하게 재현.
 
 핵심 스택: torch 2.4.0 / transformers 4.49.0 / tokenizers 0.21.1 / huggingface-hub 0.26.5 /
 datasets 3.2.0 / accelerate 1.2.0 / langchain 1.2.10 / langgraph 1.0.10 / langsmith 0.7.13 /
@@ -114,13 +112,41 @@ Colab 런타임은 공개 이미지(`us-docker.pkg.dev/colab-images/public/runti
 - ✅ **torch/CUDA/cuDNN**: torch가 **자체 번들 cu124(=CUDA 12.4, cuDNN 9.1)** 를 쓰므로 Pod과 동일.
 - ⚠️ **유일한 차이 — 시스템 nvcc(컴파일러)**: Colab 시스템 nvcc는 12.8(Pod은 12.4). 이건
   **CUDA 커널을 소스에서 직접 컴파일**할 때만 영향이 있습니다. uv/pip의 `nvidia-cuda-nvcc-cu12`
-  (12.4)를 깔아봤지만 **`ptxas`만 들어있고 nvcc 드라이버 본체는 없어**(실측, `colab-cudatoolkit-experiment.ipynb`)
-  uv로는 nvcc 12.4를 깔끔히 못 맞춥니다. 진짜 nvcc가 필요하면 **conda**(`cuda-nvcc=12.4`)나 공식
-  설치를 써야 합니다. 단, 우리 스택은 소스 컴파일이 없으므로 실무상 문제 없습니다.
+  (12.4)를 깔아봤지만 **`ptxas`만 들어있고 nvcc 드라이버 본체는 없어**(실측,
+  `notebooks/colab-cudatoolkit-experiment.ipynb`) uv로는 nvcc 12.4를 깔끔히 못 맞춥니다. 진짜
+  nvcc가 필요하면 **conda**(`cuda-nvcc=12.4`)나 공식 설치를 써야 합니다(→ 별도 이슈로 추적).
+  단, 우리 스택은 소스 컴파일이 없으므로 실무상 문제 없습니다.
 - 커널/드라이버 등 하드웨어 레벨은 Colab이 정하므로 동일하게 고정할 수 없습니다(단, T4=NVIDIA로 충분).
 
 > 조사 출처: [Colab local runtimes 문서](https://research.google.com/colaboratory/local-runtimes.html)
-> + colab-cli 런타임 직접 조회(`colab-probe.py`).
+> + colab-cli 런타임 직접 조회(`scripts/colab-probe.py`).
+
+---
+
+## 파일 구조
+
+```
+.
+├── notebooks/
+│   ├── colab-pod-clone-uv311.ipynb        ⭐ 확정: Colab에 Python 3.11.9(uv)+131패키지+torch cu124 설치·검증
+│   └── colab-cudatoolkit-experiment.ipynb (조사) uv로 nvcc 12.4가 안 되는 이유 실증(ptxas만 설치됨)
+├── scripts/
+│   ├── collect-pod-env.sh      Pod 안에서 전체 환경 정보 수집 → tar
+│   ├── quick-summary.sh        Pod 핵심 버전 한 화면 요약(스크린샷용)
+│   ├── key-versions.sh         LangChain/LangGraph/HF 핵심 버전만 추출
+│   ├── freeze-from-image.sh    Docker 이미지 패키지 → Colab용 requirements 추출
+│   ├── freeze-local.sh         로컬 venv/conda 패키지 → requirements 추출
+│   ├── colab-sync.sh           colab new→install→검증 런북(requirements 지정)
+│   ├── colab-run-notebook.sh   노트북을 colab-cli로 CPU/T4 실행(기본 노트북=uv311)
+│   ├── verify-colab-env.py     Colab에서 핵심 라이브러리 버전 출력
+│   └── colab-probe.py          Colab 런타임 OS/CUDA/드라이버 조회
+├── Dockerfile.sagemaker        Pod 재현 Dockerfile(CPU/GPU 빌드 인자, 빌드 시 import 검증)
+├── Dockerfile.template         일반 재현용 주석 템플릿
+├── requirements-pod.txt        Pod top-level 라이브러리 정확 버전 고정
+└── README.md
+```
+
+> 생성물(gitignore): `colab-sync/`(머신별 requirements), `*_output.ipynb`(colab exec 실행 결과).
 
 ---
 
@@ -190,23 +216,22 @@ Colab을 우리 환경에 맞추는** 작업입니다. [google-colab-cli](https:
 | `scripts/freeze-from-image.sh` | **Docker 이미지** 안의 패키지 → `colab-sync/requirements-image.txt` 추출 |
 | `scripts/freeze-local.sh` | 로컬 venv/conda 환경 → `colab-sync/requirements-{full,top}.txt` 추출 |
 | `scripts/colab-sync.sh` | `colab new → install -r → exec(검증)` 런북 (세션·requirements·GPU 인자) |
-| `scripts/colab-run-notebook.sh` | 노트북을 colab-cli로 CPU·T4에서 실행 (`NB=...`로 노트북 지정) |
+| `scripts/colab-run-notebook.sh` | 노트북을 colab-cli로 CPU·T4에서 실행 (기본 노트북 = uv311, `NB=...`로 변경) |
 | `scripts/verify-colab-env.py` | Colab에서 핵심 라이브러리 버전 출력(비교용) |
-| `colab-pod-clone.ipynb` | 131개 패키지 임베드 자급식 노트북. **Python = Colab 기본(3.12)** |
-| `colab-pod-clone-uv311.ipynb` | **uv로 Python 3.11.9 venv** 생성 후 설치+검증. 이미지의 파이썬까지 정확히 일치 |
-| `colab-cu124-experiment.ipynb` | **torch를 cu124까지 정확히** 맞추는 최소 실험(+ 실제 T4 GPU 연산 검증) |
+| `scripts/colab-probe.py` | Colab 런타임의 OS/CUDA/드라이버 조회(환경 비교용) |
+| `notebooks/colab-pod-clone-uv311.ipynb` | ⭐ **확정 노트북** — uv로 Python 3.11.9 venv 생성 → 131개 패키지 + torch cu124 설치 → 검증 |
+| `notebooks/colab-cudatoolkit-experiment.ipynb` | (조사) uv로 nvcc 12.4를 못 맞추는 이유 실증 — `ptxas`만 설치됨 |
 
-#### 왜 두 개의 노트북인가 (이 repo의 핵심 교훈)
+#### 확정 노트북 동작 방식 (`notebooks/colab-pod-clone-uv311.ipynb`)
 
 - 현재 **Colab 런타임은 Python 3.12.13**이고, **google-colab-cli는 가속기(CPU/GPU/TPU)만
-  고를 수 있을 뿐 런타임 버전(=Python 버전)은 선택 못 합니다.** (`colab new --help`로 확인 가능)
-- 패키지 핀만 맞추면 되면 → `colab-pod-clone.ipynb` (3.12에서도 20/20 일치 확인됨).
-- **Python 3.11.9까지 정확히** 맞춰야 하면 → **`colab-pod-clone-uv311.ipynb`**.
-  `uv venv --python 3.11.9`로 standalone CPython을 받아 별도 venv에 설치합니다.
+  고를 수 있을 뿐 런타임 버전(=Python 버전)은 선택 못 합니다** (`colab new --help`로 확인).
+- 그래서 **`uv venv --python 3.11.9`** 로 standalone CPython을 받아 별도 venv에 설치해
+  Pod의 파이썬 패치 버전까지 맞춥니다.
   - 이 3.11.9는 **venv/서브프로세스**입니다(노트북 셀 커널은 3.12 그대로). 실제 코드는
     `/content/py311/bin/python script.py` 또는 `uv run`으로 실행하세요.
   - NVIDIA 드라이버는 시스템 레벨이라 **venv에서도 GPU(`cuda? True`)가 잡힙니다** (T4 실측 확인).
-  - uv라 설치가 매우 빠릅니다(144패키지 ≈ 1.3초).
+  - torch는 cu124로 강제 설치(아래), uv라 설치가 매우 빠릅니다(≈ 수 초).
 
 #### CUDA 빌드까지 정확히 맞추기 (cu124)
 
@@ -219,13 +244,14 @@ uv pip install --python /content/py311/bin/python \
     --index-url https://download.pytorch.org/whl/cu124
 ```
 
-**T4 실측 결과**(`colab-cu124-experiment.ipynb`): `torch 2.4.0+cu124` / built cuda `12.4` /
-cudnn `9.1.0` / `cuda available True` / Tesla T4(드라이버 580.82.07) / 실제 GPU matmul 정상.
-→ Pod의 torch·CUDA·cuDNN을 모두 정확히 재현.
+확정 노트북은 이미 이 방식으로 cu124를 설치합니다. **T4 실측**: `torch 2.4.0+cu124` /
+built cuda `12.4` / cudnn `9.1` / `cuda available True` / Tesla T4(드라이버 580.82.07) →
+Pod의 torch·CUDA·cuDNN을 모두 정확히 재현.
 
-> cu124 휠은 `nvidia-*-cu12 12.4` 런타임 라이브러리(약 2GB)를 함께 가져옵니다. **GPU 런타임에서만**
-> 의미가 있고, CPU 런타임에선 불필요하니 생략하세요(cu121/기본으로 충분). 전체 환경에 적용하려면
-> `requirements-image.txt` 설치 **뒤에** 위 명령으로 torch만 덮어쓰면 됩니다.
+> 주의: requirements가 torch(cu121)를 먼저 깔면, 뒤이은 cu124 설치가 "이미 충족"으로 보고
+> 건너뜁니다. 그래서 노트북은 `--reinstall-package torch torchvision torchaudio` 로 **강제
+> 재설치**합니다. cu124 휠은 `nvidia-*-cu12 12.4` 런타임(약 2GB)을 함께 가져오므로 CPU
+> 전용이면 생략 가능합니다.
 
 #### 헤드리스 실행 시 주의 (numpy ABI)
 

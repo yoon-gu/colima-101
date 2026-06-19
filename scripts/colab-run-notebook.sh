@@ -1,5 +1,5 @@
 #!/usr/bin/env sh
-# colab-pod-clone.ipynb 를 google-colab-cli로 CPU와 T4 두 인스턴스에서 실행한다.
+# notebooks/colab-pod-clone-uv311.ipynb 를 google-colab-cli로 CPU/T4 인스턴스에서 실행한다.
 # 노트북 안에 설치+검증 셀이 모두 있어 colab exec 한 번으로 끝난다.
 #
 # 사전(최초 1회, 꼭 먼저!):
@@ -10,11 +10,11 @@
 #   sh scripts/colab-run-notebook.sh           # CPU + T4 둘 다
 #   sh scripts/colab-run-notebook.sh cpu       # CPU 인스턴스만
 #   sh scripts/colab-run-notebook.sh t4        # T4 GPU 인스턴스만
-#   NB=other.ipynb TIMEOUT=2400 sh scripts/colab-run-notebook.sh
+#   NB=notebooks/다른노트북.ipynb TIMEOUT=2400 sh scripts/colab-run-notebook.sh
 #
 # 참고: 설치(131개)가 오래 걸리므로 exec 타임아웃을 넉넉히(기본 1800초) 준다.
 
-NB="${NB:-colab-pod-clone.ipynb}"
+NB="${NB:-notebooks/colab-pod-clone-uv311.ipynb}"
 TIMEOUT="${TIMEOUT:-1800}"
 WHICH="${1:-all}"
 
