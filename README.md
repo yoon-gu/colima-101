@@ -102,25 +102,28 @@ Colab 런타임은 공개 이미지(`us-docker.pkg.dev/colab-images/public/runti
 |---|---|---|---|
 | **OS** | Ubuntu 22.04.5 LTS | **Ubuntu 22.04.5 LTS** ✅ | Ubuntu 22.04 (이미지) / Colab 동일 |
 | 커널 | — | 6.6.122+ | — |
-| glibc / gcc | (22.04) | 2.35 / 11.4.0 | (22.04) 동일 |
 | **Python** | 3.11.9 | 3.12.13 (시스템) | **uv venv 3.11.9** ✅ |
 | **torch** | 2.4.0+cu124 | 기본 설치 시 cu121 | **2.4.0+cu124** ✅ (강제 재설치) |
 | CUDA(런타임) | 12.4 | 시스템 toolkit 12.8 / **torch 번들 12.4** | torch 번들 12.4 ✅ |
-| cuDNN | 9.1 | (torch 번들) | 9.1 ✅ |
-| GPU / 드라이버 | NVIDIA | Tesla T4 / 580.82.07 | T4 ✅ |
+| cuDNN | 9.1.0 (torch 번들) | 단일 시스템 cuDNN 없음 — 프레임워크별 번들 (TF 9.3.0 / 기본 torch 9.19.0) | **torch 번들 9.1.0** ✅ |
+| GPU(하드웨어) | NVIDIA (모델 미상 · **T4 아님**) | Tesla T4 / 드라이버 580.82.07 | ⚠️ **T4는 대체 GPU** (하드웨어 불일치) |
 
 **정리 — 무엇이 맞고 무엇이 한계인가**
 
 - ✅ **OS 동일**: 둘 다 Ubuntu 22.04.5 LTS.
 - ✅ **Python**: 시스템은 3.12지만 uv standalone 3.11.9로 맞춤(단, **venv/서브프로세스**로 실행).
-- ✅ **torch/CUDA/cuDNN**: torch가 **자체 번들 cu124(=CUDA 12.4, cuDNN 9.1)** 를 쓰므로 Pod과 동일.
+- ✅ **torch/CUDA/cuDNN**: torch가 **자체 번들 cu124(=CUDA 12.4, cuDNN 9.1.0)** 를 쓰므로 Pod과 동일.
+  Colab엔 단일 시스템 cuDNN이 없고 프레임워크마다 자기 걸 번들하지만(TF 9.3.0, 기본 torch 9.19.0),
+  우리 venv torch는 자기 번들 9.1.0을 쓰므로 그 값들과 무관합니다.
 - ⚠️ **유일한 차이 — 시스템 nvcc(컴파일러)**: Colab 시스템 nvcc는 12.8(Pod은 12.4). 이건
   **CUDA 커널을 소스에서 직접 컴파일**할 때만 영향이 있습니다. uv/pip의 `nvidia-cuda-nvcc-cu12`
   (12.4)를 깔아봤지만 **`ptxas`만 들어있고 nvcc 드라이버 본체는 없어**(실측,
   `notebooks/colab-cudatoolkit-experiment.ipynb`) uv로는 nvcc 12.4를 깔끔히 못 맞춥니다. 진짜
   nvcc가 필요하면 **conda**(`cuda-nvcc=12.4`)나 공식 설치를 써야 합니다(→ 별도 이슈로 추적).
   단, 우리 스택은 소스 컴파일이 없으므로 실무상 문제 없습니다.
-- 커널/드라이버 등 하드웨어 레벨은 Colab이 정하므로 동일하게 고정할 수 없습니다(단, T4=NVIDIA로 충분).
+- ⚠️ **GPU 하드웨어는 일치시키지 않습니다**: Pod의 실제 GPU 모델/드라이버는 우리가 쓰는 Colab
+  **T4와 다릅니다**(Pod GPU 모델은 미확인). T4는 "NVIDIA GPU 코드 경로를 테스트하기 위한 대체재"일
+  뿐이라, compute capability(T4 = sm_75)에 의존하는 코드는 Pod GPU에서 결과/성능이 다를 수 있습니다.
 
 > 조사 출처: [Colab local runtimes 문서](https://research.google.com/colaboratory/local-runtimes.html)
 > + colab-cli 런타임 직접 조회(`scripts/colab-probe.py`).
