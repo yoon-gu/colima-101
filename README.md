@@ -4,16 +4,23 @@
 
 - 우리 코드는 **NVIDIA GPU가 달린 Ubuntu Pod**(SageMaker)에서 돌아갑니다.
 - 하지만 개발은 **Apple Silicon Mac(M5, 32GB)** 에서 합니다 — NVIDIA/CUDA가 없습니다.
-- 그래서 작성한 코드를 **그 Pod과 최대한 동일한 환경**에서 검증하려고:
-  1. Pod의 패키지 환경을 **로컬 Docker 이미지(`pod-clone`)** 로 재현하고,
-  2. **NVIDIA 하드웨어가 필요한 부분은 Colab T4 인스턴스**로 해결합니다.
-- **확정 스택**: Python **3.11.9** / **torch 2.4.0+cu124** (CUDA 12.4 · cuDNN 9.1) +
-  HuggingFace / LangChain / LangGraph. (T4에서 GPU 연산까지 실측 검증)
 
-이를 위한 작업은 세 갈래입니다.
+**개발 순서**는 이렇습니다:
+
+1. **로컬 Docker 컨테이너(`pod-clone`)** 에서 Pod과 동일한 패키지 환경을 만들고,
+   **NVIDIA GPU 없이(CPU)** 코드가 도는지 먼저 확인합니다 (Mac/colima에서).
+2. 그 다음 **같은 코드를 NVIDIA GPU로 테스트**하기 위해 **Colab T4 인스턴스**를 씁니다.
+
+- **확정 스택**: Python **3.11.9** / **torch 2.4.0+cu124** (CUDA 12.4 · cuDNN 9.1) +
+  HuggingFace / LangChain / LangGraph. (CPU·T4 양쪽 실측 검증 완료)
+
+> **Pod ↔ Colab 환경 차이?** 아래 [환경 비교](#환경-비교-실측)에 실측 정리. 결론부터:
+> **Ubuntu 버전은 우연히 동일(22.04.5)**, 다른 건 시스템 Python(3.12)뿐인데 uv로 3.11.9를 맞춥니다.
+
+작업은 세 갈래입니다.
 
 - **A.** Colab T4에서 그 환경(+NVIDIA GPU)을 돌리기 ← 핵심
-- **B.** 같은 패키지 환경을 로컬 Docker 이미지(`pod-clone`)로 재현하기
+- **B.** 같은 패키지 환경을 로컬 Docker 이미지(`pod-clone`)로 재현하기 (개발 1단계)
 - **C.** (그 토대로) macOS에 colima로 Docker + Kubernetes 깔기
 
 > 아래 **TL;DR**만 보면 바로 돌릴 수 있습니다. 배경/이유가 궁금하면 [상세](#배경--상세)로.
@@ -81,6 +88,36 @@ colima start --kubernetes        # Docker 런타임 + k3s 함께 기동, kubectl
 핵심 스택: torch 2.4.0 / transformers 4.49.0 / tokenizers 0.21.1 / huggingface-hub 0.26.5 /
 datasets 3.2.0 / accelerate 1.2.0 / langchain 1.2.10 / langgraph 1.0.10 / langsmith 0.7.13 /
 openai 2.26.0 / anthropic 0.84.0 / chromadb 1.3.6 / numpy 1.26.4 / pydantic 2.12.5.
+
+---
+
+## 환경 비교 (실측)
+
+Colab 런타임은 공개 이미지(`us-docker.pkg.dev/colab-images/public/runtime`, GPU판 /
+`.../cpu-runtime`, linux/amd64)로 빌드됩니다. colab-cli로 붙는 런타임에서 직접 조회한 값:
+
+| 항목 | 우리 Pod (SageMaker) | Colab 런타임 (실측) | 우리 재현 (pod-clone + uv) |
+|---|---|---|---|
+| **OS** | Ubuntu 22.04.5 LTS | **Ubuntu 22.04.5 LTS** ✅ | Ubuntu 22.04 (이미지) / Colab 동일 |
+| 커널 | — | 6.6.122+ | — |
+| glibc / gcc | (22.04) | 2.35 / 11.4.0 | (22.04) 동일 |
+| **Python** | 3.11.9 | 3.12.13 (시스템) | **uv venv 3.11.9** ✅ |
+| **torch** | 2.4.0+cu124 | 기본 설치 시 cu121 | **2.4.0+cu124** ✅ (강제 재설치) |
+| CUDA(런타임) | 12.4 | 시스템 toolkit 12.8 / **torch 번들 12.4** | torch 번들 12.4 ✅ |
+| cuDNN | 9.1 | (torch 번들) | 9.1 ✅ |
+| GPU / 드라이버 | NVIDIA | Tesla T4 / 580.82.07 | T4 ✅ |
+
+**정리 — 무엇이 맞고 무엇이 한계인가**
+
+- ✅ **Ubuntu는 우연히 동일(22.04.5)**. 걱정하셨던 "Ubuntu 버전 못 맞춤"은 실제론 일치합니다.
+- ✅ **Python**: 시스템은 3.12지만 uv standalone 3.11.9로 맞춤(단, **venv/서브프로세스**로 실행).
+- ✅ **torch/CUDA/cuDNN**: torch가 **자체 번들 cu124(=CUDA 12.4, cuDNN 9.1)** 를 쓰므로 Pod과 동일.
+- ⚠️ **한계**: Colab **시스템** CUDA toolkit은 12.8입니다. torch 연산엔 영향 없지만, **시스템 nvcc로
+  CUDA 확장을 직접 컴파일**하면 12.8이 잡힙니다(이 경우에만 Pod의 12.4와 차이). 또한 커널/드라이버
+  등 하드웨어 레벨은 Colab이 정하므로 동일하게 고정할 수 없습니다.
+
+> 조사 출처: [Colab local runtimes 문서](https://research.google.com/colaboratory/local-runtimes.html)
+> + colab-cli 런타임 직접 조회(`colab-probe.py`).
 
 ---
 
