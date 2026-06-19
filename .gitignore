@@ -219,3 +219,6 @@ __marimo__/
 
 # Colab 동기화용 생성물(머신별 패키지 목록)
 colab-sync/
+
+# colab exec 실행 결과 노트북(생성물)
+*_output.ipynb
