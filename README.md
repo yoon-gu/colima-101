@@ -170,24 +170,28 @@ uv tool install google-colab-cli   # 또는: pip install google-colab-cli
 | 파일 | 용도 |
 |---|---|
 | `scripts/freeze-local.sh` | 로컬 환경 → `colab-sync/requirements-{full,top}.txt` 추출(로컬경로·URL 라인 제외) |
+| `scripts/freeze-from-image.sh` | **Docker 이미지** 안의 패키지 → `colab-sync/requirements-image.txt` 추출 |
 | `scripts/colab-sync.sh` | `colab new → install -r → exec(검증)` 런북. 세션·requirements·GPU 인자 |
 | `scripts/verify-colab-env.py` | Colab에서 실행돼 핵심 라이브러리 버전 출력(로컬과 비교) |
 
 ### 절차
 
 ```bash
-# 1) 동기화할 환경의 패키지 추출 (특정 venv/conda면 PYBIN 지정)
+# 1) 동기화할 환경의 패키지 추출 — 두 가지 출처 중 선택
+#  (a) Docker 이미지에 맞추기 (예: 앞서 만든 pod-clone:cpu)  ← 권장
+sh scripts/freeze-from-image.sh pod-clone:cpu
+#  (b) 로컬 venv/conda에 맞추기
 PYBIN=/path/to/venv/bin/python sh scripts/freeze-local.sh
 
 # 2) Colab 세션 생성 + 설치 + 검증 (GPU는 선택: T4/L4/A100 등)
-sh scripts/colab-sync.sh mysync colab-sync/requirements-top.txt T4
-
-# (이미 만든 SageMaker 스택을 그대로 올리고 싶으면)
-sh scripts/colab-sync.sh mysync requirements-pod.txt T4
+sh scripts/colab-sync.sh mysync colab-sync/requirements-image.txt T4
 
 # 3) 끝나면 세션 정리
 colab stop -s mysync
 ```
+
+> **Python 버전**: 이미지/Pod는 3.11.9, Colab도 3.11 계열이라 패키지는 그대로 맞지만,
+> 패치 버전(3.11.x)은 Colab이 정하므로 정확히 같게는 못 맞춥니다(패키지 호환엔 무방).
 
 ### 주의
 
