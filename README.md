@@ -173,6 +173,8 @@ uv tool install google-colab-cli   # 또는: pip install google-colab-cli
 | `scripts/freeze-from-image.sh` | **Docker 이미지** 안의 패키지 → `colab-sync/requirements-image.txt` 추출 |
 | `scripts/colab-sync.sh` | `colab new → install -r → exec(검증)` 런북. 세션·requirements·GPU 인자 |
 | `scripts/verify-colab-env.py` | Colab에서 실행돼 핵심 라이브러리 버전 출력(로컬과 비교) |
+| `colab-pod-clone.ipynb` | pod-clone 패키지를 임베드한 자급식 노트북(Run all로 설치+검증) |
+| `scripts/colab-run-notebook.sh` | 위 노트북을 colab-cli로 **CPU·T4 두 인스턴스**에서 실행 |
 
 ### 절차
 
@@ -192,6 +194,20 @@ colab stop -s mysync
 
 > **Python 버전**: 이미지/Pod는 3.11.9, Colab도 3.11 계열이라 패키지는 그대로 맞지만,
 > 패치 버전(3.11.x)은 Colab이 정하므로 정확히 같게는 못 맞춥니다(패키지 호환엔 무방).
+
+### 노트북을 colab-cli로 CPU·T4 양쪽에서 실행
+
+`colab-pod-clone.ipynb`(131개 패키지 임베드, Run all로 설치+검증)를 두 인스턴스에서 자동 실행:
+
+```bash
+sh scripts/colab-run-notebook.sh        # CPU + T4 둘 다
+sh scripts/colab-run-notebook.sh cpu    # CPU만
+sh scripts/colab-run-notebook.sh t4     # T4 GPU만
+```
+
+각 인스턴스에서 `colab new → colab exec -f <노트북> --timeout 1800 → colab log → colab stop`
+을 수행합니다. 설치가 오래 걸려 exec 타임아웃을 넉넉히 둡니다. GUI로 쓰려면 노트북을
+Colab에서 열어 **Runtime → (Change runtime type) → Run all** 해도 됩니다.
 
 ### 주의
 
