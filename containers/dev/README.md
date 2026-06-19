@@ -1,7 +1,14 @@
 # dev 컨테이너 (개발 편의용)
 
-**개발을 편하게** 하기 위해, 우리 코드가 실제로 도는 **SageMaker Distribution Pod**
-(conda 기반, Studio/노트북 환경)을 로컬에 재현합니다. NVIDIA GPU가 필요한 부분은 Colab T4로 검증합니다.
+**개발을 편하게** 하기 위해, 우리 코드가 실제로 도는 Pod을 로컬에 재현합니다.
+NVIDIA GPU가 필요한 부분은 Colab T4로 검증합니다.
+
+> **실제 Pod 베이스 = AWS PyTorch training DLC** (사내 커스텀, conda/Jupyter).
+> env `SAGEMAKER_TRAINING_MODULE=sagemaker_pytorch_container.training:main` +
+> 내부 태그 `…py311gpu-pt240-cu124-aws-dlc-train…` 으로 확인 →
+> `pytorch-training:2.4.0-gpu-py311-cu124-ubuntu22.04-sagemaker` 계열.
+> 현 `Dockerfile`은 `python:3.11-slim`(Debian) 기반 **경량 근사 재현**(휠 실행엔 충분).
+> 충실 재현이 필요하면 위 DLC를 베이스로 사용. (태그의 `u2004`는 사내 명명 오류 — 실제 OS는 Ubuntu 22.04)
 
 ## 확정 스택 (실측 검증 완료)
 
