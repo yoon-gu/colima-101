@@ -202,8 +202,15 @@ sh scripts/colab-sync.sh mysync colab-sync/requirements-image.txt T4
 colab stop -s mysync
 ```
 
-> **Python 버전**: 이미지/Pod는 3.11.9, Colab도 3.11 계열이라 패키지는 그대로 맞지만,
-> 패치 버전(3.11.x)은 Colab이 정하므로 정확히 같게는 못 맞춥니다(패키지 호환엔 무방).
+> **Python 버전 주의**: 이미지/Pod는 3.11.9지만, 현재 **Colab 런타임은 Python 3.12.13**
+> 입니다. google-colab-cli(`colab new`)는 가속기(CPU/GPU/TPU)만 고를 수 있고 **런타임
+> 버전(=Python 버전)은 선택할 수 없습니다.** 3.11이 꼭 필요하면 Colab 웹 UI의 fallback
+> 런타임(제공 시) 또는 로컬 Docker 이미지를 쓰세요. 단, 패키지 핀은 3.12에서도 그대로
+> 맞습니다(아래 실측에서 20/20 일치).
+>
+> **검증 완료(실측)**: CPU·T4 두 인스턴스 모두 핵심 20개 패키지 **20/20 일치**
+> (torch 2.4.0 / transformers 4.49.0 / langchain 1.2.10 / langgraph 1.0.10 ...).
+> T4에서는 `cuda? True | device: Tesla T4` 확인.
 
 ### 노트북을 colab-cli로 CPU·T4 양쪽에서 실행
 
